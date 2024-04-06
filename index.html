@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matematik Haritası</title>
+    <!-- Leaflet CSS dosyasını ekleyin -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        /* Harita container'ının boyutu ve çerçeve stilini düzenle */
+        #map-container {
+            border: 5px solid #0077cc; /* Mavi çerçeve rengi */
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Harita container'ının boyutu */
+        #map {
+            height: 500px;
+        }
+
+        /* Başlık stilini düzenle */
+        #title {
+            background-color: #0077cc; /* Mavi başlık arka plan rengi */
+            color: white; /* Beyaz başlık metin rengi */
+            padding: 10px;
+            text-align: center;
+            font-size: 20px;
+        }
+
+        /* Buton stilini düzenle */
+        #randomMarkerButton {
+            display: block;
+            margin: 10px auto;
+            padding: 10px;
+            background-color: #0077cc;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* Büyük resim container'ı */
+        #large-image-container {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            text-align: center;
+        }
+
+        /* Büyük resim */
+        #large-image {
+            max-width: 80%;
+            max-height: 80%;
+            cursor: pointer;
+        }
+
+        /* Kapatma butonu */
+        #close-button {
+            cursor: pointer;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            color: #FF0000;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Harita container'ı -->
+<div id="map-container">
+    <!-- Başlık -->
+    <div id="title">Türkiye Matematik Haritası</div>
+
+    <!-- Harita -->
+    <div id="map"></div>
+
+    <!-- Rastgele işaretçi açma butonu -->
+    <button id="randomMarkerButton" onclick="openRandomMarkerPopup()">Rastgele İl Seç</button>
+</div>
+
+<!-- Leaflet JS dosyasını ekleyin -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+    // Türkiye'nin genel merkez koordinatları
+    var turkeyCenter = [39.9334, 32.8597];
+
+    // Türkiye'nin 81 ilinin gerçek koordinatları, plaka kodları, isimleri ve resim isimleri
+    var provinceData = {
+        'Adana': { coordinates: [37.0000, 35.3213], plate: '01', image: '1.jpg' },
+        'Adıyaman': { coordinates: [37.7648, 38.2786], plate: '02', image: '2.jpg' },
+         'Afyonkarahisar': { coordinates: [38.7500, 30.5500], plate: '03' , image: '3.jpg'  },
+    'Ağrı': { coordinates: [39.7191, 43.0503], plate: '04' , image: '4.jpg'  },
+    'Amasya': { coordinates: [40.6499, 35.8353], plate: '05' , image: '5.jpg'  },
+    'Ankara': { coordinates: [39.9334, 32.8597], plate: '06' , image: '6.jpg'  },
+    'Antalya': { coordinates: [36.8841, 30.7056], plate: '07' , image: '7.jpg'  },
+    'Artvin': { coordinates: [41.1836, 41.8183], plate: '08' , image: '8.jpg'  },
+    'Aydın': { coordinates: [37.8444, 27.8458], plate: '09' , image: '9.jpg'  },
+    'Balıkesir': { coordinates: [39.6484, 27.8826], plate: '10' , image: '10.jpg'  },
+    'Bilecik': { coordinates: [40.0567, 30.0665], plate: '11' , image: '11.jpg'  },
+    'Bingöl': { coordinates: [39.0626, 40.7696], plate: '12' , image: '12.jpg'  },
+    'Bitlis': { coordinates: [38.3938, 42.1236], plate: '13' , image: '13.jpg'  },
+    'Bolu': { coordinates: [40.5760, 31.5788], plate: '14'  , image: '14.jpg' },
+    'Burdur': { coordinates: [37.4613, 30.0665], plate: '15' , image: '15.jpg'  },
+    'Bursa': { coordinates: [40.1824, 29.0670], plate: '16' , image: '16.jpg'  },
+    'Çanakkale': { coordinates: [40.1553, 26.4142], plate: '17'  , image: '17.jpg' },
+    'Çankırı': { coordinates: [40.6016, 33.6139], plate: '18' , image: '18.jpg' },
+    'Çorum': { coordinates: [40.5500, 34.9500], plate: '19' , image: '19.jpg' },
+    'Denizli': { coordinates: [37.7760, 29.0864], plate: '20' , image: '20.jpg' },
+    'Diyarbakır': { coordinates: [37.9204, 40.2306], plate: '21' , image: '21.jpg' },
+    'Edirne': { coordinates: [41.6758, 26.5587], plate: '22' , image: '22.jpg' },
+    'Elazığ': { coordinates: [38.6748, 39.2279], plate: '23' , image: '23.jpg' },
+    'Erzincan': { coordinates: [39.9379, 39.3375], plate: '24' , image: '24.jpg' },
+    'Erzurum': { coordinates: [39.9086, 41.2769], plate: '25' , image: '25.jpg' },
+    'Eskişehir': { coordinates: [39.7767, 30.5206], plate: '26' , image: '26.jpg' },
+    'Gaziantep': { coordinates: [37.0662, 37.3833], plate: '27' , image: '27.jpg' },
+    'Giresun': { coordinates: [40.9128, 38.3895], plate: '28' , image: '28.jpg' },
+    'Gümüşhane': { coordinates: [40.4386, 39.5086], plate: '29' , image: '29.jpg' },
+    'Hakkâri': { coordinates: [37.5744, 43.7407], plate: '30' , image: '30.jpg' },
+    'Hatay': { coordinates: [36.4018, 36.3498], plate: '31' , image: '31.jpg' },
+    'Isparta': { coordinates: [37.7648, 30.5563], plate: '32' , image: '32.jpg' },
+    'Mersin': { coordinates: [36.8000, 34.6333], plate: '33' , image: '33.jpg' },
+    'İstanbul': { coordinates: [41.0082, 28.9784], plate: '34' , image: '34.jpg' },
+    'İzmir': { coordinates: [38.4237, 27.1428], plate: '35' , image: '35.jpg' },
+    'Kars': { coordinates: [40.5927, 43.0772], plate: '36' , image: '36.jpg' },
+    'Kastamonu': { coordinates: [41.3768, 33.7633], plate: '37' , image: '37.jpg' },
+    'Kayseri': { coordinates: [38.7340, 35.4675], plate: '38' , image: '38.jpg' },
+    'Kırklareli': { coordinates: [41.7333, 27.2167], plate: '39' , image: '39.jpg' },
+    'Kırşehir': { coordinates: [39.1425, 34.1709], plate: '40' , image: '40.jpg' },
+    'Kocaeli': { coordinates: [40.8533, 29.8815], plate: '41' , image: '41.jpg' },
+    'Konya': { coordinates: [37.8651, 32.4821], plate: '42' , image: '42.jpg' },
+    'Kütahya': { coordinates: [39.4192, 29.9833], plate: '43' , image: '43.jpg' },
+    'Malatya': { coordinates: [38.3552, 38.3095], plate: '44' , image: '44.jpg' },
+    'Manisa': { coordinates: [38.6191, 27.4289], plate: '45' , image: '45.jpg' },
+    'Kahramanmaraş': { coordinates: [37.5744, 36.9372], plate: '46' , image: '46.jpg' },
+    'Mardin': { coordinates: [37.3212, 40.7245], plate: '47' , image: '47.jpg' },
+    'Muğla': { coordinates: [37.2150, 28.3636], plate: '48' , image: '48.jpg' },
+    'Muş': { coordinates: [38.9462, 41.7539], plate: '49' , image: '49.jpg' },
+    'Nevşehir': { coordinates: [38.6937, 34.6857], plate: '50' , image: '50.jpg' },
+    'Niğde': { coordinates: [37.9666, 34.6796], plate: '51' , image: '51.jpg' },
+    'Ordu': { coordinates: [40.9833, 37.8764], plate: '52' , image: '52.jpg' },
+    'Rize': { coordinates: [41.0201, 40.5234], plate: '53' , image: '53.jpg' },
+    'Sakarya': { coordinates: [40.7833, 30.4000], plate: '54' , image: '54.jpg' },
+    'Samsun': { coordinates: [41.2867, 36.3300], plate: '55' , image: '55.jpg' },
+    'Siirt': { coordinates: [37.9333, 41.9500], plate: '56' , image: '56.jpg' },
+    'Sinop': { coordinates: [42.0265, 35.1555], plate: '57' , image: '57.jpg' },
+    'Sivas': { coordinates: [39.7477, 37.0179], plate: '58' , image: '58.jpg' },
+    'Tekirdağ': { coordinates: [40.9833, 27.5167], plate: '59' , image: '59.jpg' },
+    'Tokat': { coordinates: [40.3167, 36.5500], plate: '60' , image: '60.jpg' },
+    'Trabzon': { coordinates: [41.0015, 39.7178], plate: '61' , image: '61.jpg' },
+    'Tunceli': { coordinates: [39.1069, 39.5483], plate: '62' , image: '62.jpg' },
+    'Şanlıurfa': { coordinates: [37.1671, 38.7939], plate: '63' , image: '63.jpg' },
+    'Uşak': { coordinates: [38.6823, 29.4082], plate: '64' , image: '64.jpg' },
+    'Van': { coordinates: [38.4891, 43.4089], plate: '65' , image: '65.jpg' },
+    'Yozgat': { coordinates: [39.8182, 34.8147], plate: '66' , image: '66.jpg' },
+    'Zonguldak': { coordinates: [41.4300, 31.7800], plate: '67' , image: '67.jpg' },
+    'Aksaray': { coordinates: [38.3687, 34.0370], plate: '68' , image: '68.jpg' },
+    'Bayburt': { coordinates: [40.2725, 40.2249], plate: '69' , image: '69.jpg' },
+    'Karaman': { coordinates: [37.1811, 33.2150], plate: '70' , image: '70.jpg' },
+    'Kırıkkale': { coordinates: [39.8468, 33.5152], plate: '71' , image: '71.jpg' },
+    'Batman': { coordinates: [37.8812, 41.1351], plate: '72' , image: '72.jpg' },
+    'Şırnak': { coordinates: [37.4187, 42.4919], plate: '73' , image: '73.jpg' },
+    'Bartın': { coordinates: [41.5811, 32.4610], plate: '74' , image: '74.jpg' },
+    'Ardahan': { coordinates: [41.1105, 42.7022], plate: '75' , image: '75.jpg' },
+    'Iğdır': { coordinates: [39.9232, 44.0443], plate: '76' , image: '76.jpg' },
+    'Yalova': { coordinates: [40.6500, 29.2669], plate: '77' , image: '77.jpg' },
+    'Karabük': { coordinates: [41.1987, 32.6292], plate: '78' , image: '78.jpg' },
+    'Kilis': { coordinates: [36.7167, 37.1167], plate: '79' , image: '79.jpg' },
+    'Osmaniye': { coordinates: [37.2500, 36.2500], plate: '80' , image: '80.jpg' },
+    'Düzce': { coordinates: [40.8438, 31.1565], plate: '81' , image: '81.jpg' },
+    };
+
+    // Harita oluştur
+    var map = L.map('map').setView(turkeyCenter, 6);
+
+    // Harita katmanı ekle
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // İl işaretçilerini rastgele konumlandır
+    var markers = [];
+    for (var province in provinceData) {
+        if (provinceData.hasOwnProperty(province)) {
+            var data = provinceData[province];
+            var coordinates = data.coordinates;
+            var plate = data.plate;
+            var image = data.image;
+
+            var marker = L.marker(coordinates).addTo(map);
+            marker.bindPopup('<strong>' + province + '</strong><br>Plaka: ' + plate + '<br><img src="image/' + image + '" alt="' + province + '" width="100" onclick="showLargeImage(\'image/' + image + '\')"></br><button onclick="startGame(\'' + plate + '\')">Soru Sor</button>');
+            markers.push(marker);
+        }
+    }
+
+    // İl işaretçilerini rastgele sırala
+    markers.sort(function () {
+        return 0.5 - Math.random();
+    });
+
+    // İl işaretçilerini haritaya ekle
+    for (var i = 0; i < markers.length; i++) {
+        markers[i].addTo(map);
+    }
+
+    // Rastgele işaretçi açma butonu için fonksiyon
+    function openRandomMarkerPopup() {
+        var randomIndex = Math.floor(Math.random() * markers.length);
+        markers[randomIndex].openPopup();
+    }
+
+    // Oyunu başlatan fonksiyon
+    function startGame(correctPlate) {
+        var randomOperation = Math.floor(Math.random() * 10); // 0-2: Çift mi, Asal mı, 4'e bölünebilir mi?, 3-7: 3, 5, 7, 9, 11'e bölünebilir mi?, 8-9: Tam kare mi, Mükemmel sayı mı?
+        var question;
+        var expectedAnswer;
+
+        switch (randomOperation) {
+            case 0:
+                question = 'Bu plakalı ilin numarası çift midir?';
+                expectedAnswer = isEven(correctPlate);
+                break;
+            case 1:
+                question = 'Bu plakalı ilin numarası asal mıdır?';
+                expectedAnswer = isPrime(correctPlate);
+                break;
+            case 2:
+                question = 'Bu plakalı ilin numarası 4\'e bölünebilir mi?';
+                expectedAnswer = isDivisibleByFour(correctPlate);
+                break;
+            case 3:
+                question = 'Bu plakalı ilin numarası 3\'e bölünebilir mi?';
+                expectedAnswer = isDivisibleByThree(correctPlate);
+                break;
+            case 4:
+                question = 'Bu plakalı ilin numarası 5\'e bölünebilir mi?';
+                expectedAnswer = isDivisibleByFive(correctPlate);
+                break;
+            case 5:
+                question = 'Bu plakalı ilin numarası 7\'ye bölünebilir mi?';
+                expectedAnswer = isDivisibleBySeven(correctPlate);
+                break;
+            case 6:
+                question = 'Bu plakalı ilin numarası 9\'a bölünebilir mi?';
+                expectedAnswer = isDivisibleByNine(correctPlate);
+                break;
+            case 7:
+                question = 'Bu plakalı ilin numarası 11\'e bölünebilir mi?';
+                expectedAnswer = isDivisibleByEleven(correctPlate);
+                break;
+            case 8:
+                question = 'Bu plakalı ilin numarası tam kare midir?';
+                expectedAnswer = isPerfectSquare(correctPlate);
+                break;
+            case 9:
+                question = 'Bu plakalı ilin numarası mükemmel sayı mıdır?';
+                expectedAnswer = isPerfectNumber(correctPlate);
+                break;
+            default:
+                break;
+        }
+
+        var userAnswer = confirm(question);
+
+        if (userAnswer === expectedAnswer) {
+            alert('Tebrikler! Doğru cevap!');
+        } else {
+            alert('Üzgünüm, yanlış cevap. Doğru cevap: ' + (expectedAnswer ? 'Evet' : 'Hayır'));
+        }
+    }
+
+    // Haritada tıklanan yerin büyük resmini göster
+    function showLargeImage(imageUrl) {
+        var largeImage = document.getElementById('large-image');
+        largeImage.src = imageUrl;
+        document.getElementById('large-image-container').style.display = 'block';
+    }
+
+    // Büyük resmi kapat
+    function closeLargeImage() {
+        document.getElementById('large-image-container').style.display = 'none';
+    }
+
+    // Bir sayının asal olup olmadığını kontrol eden fonksiyon
+    function isPrime(number) {
+        if (number <= 1) return false;
+        for (var i = 2; i <= Math.sqrt(number); i++) {
+            if (number % i === 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Bir sayının çift olup olmadığını kontrol eden fonksiyon
+    function isEven(number) {
+        return number % 2 === 0;
+    }
+
+    // Bir sayının 4'e bölünebilir olup olmadığını kontrol eden fonksiyon
+    function isDivisibleByFour(number) {
+        return number % 4 === 0;
+    }
+
+    // Bir sayının 3'e bölünebilir olup olmadığını kontrol eden fonksiyon
+    function isDivisibleByThree(number) {
+        return number % 3 === 0;
+    }
+
+    // Bir sayının 5'e bölünebilir olup olmadığını kontrol eden fonksiyon
+    function isDivisibleByFive(number) {
+        return number % 5 === 0;
+    }
+
+    // Bir sayının 7'ye bölünebilir olup olmadığını kontrol eden fonksiyon
+    function isDivisibleBySeven(number) {
+        return number % 7 === 0;
+    }
+
+    // Bir sayının 9'a bölünebilir olup olmadığını kontrol eden fonksiyon
+    function isDivisibleByNine(number) {
+        return number % 9 === 0;
+    }
+
+    // Bir sayının 11'e bölünebilir olup olmadığını kontrol eden fonksiyon
+    function isDivisibleByEleven(number) {
+        return number % 11 === 0;
+    }
+
+    // Bir sayının tam kare olup olmadığını kontrol eden fonksiyon
+    function isPerfectSquare(number) {
+        var sqrt = Math.sqrt(number);
+        return sqrt === Math.floor(sqrt);
+    }
+
+    // Bir sayının mükemmel sayı olup olmadığını kontrol eden fonksiyon
+    function isPerfectNumber(number) {
+        var divisors = [1];
+        for (var i = 2; i <= Math.sqrt(number); i++) {
+            if (number % i === 0) {
+                divisors.push(i);
+                if (i !== number / i) {
+                    divisors.push(number / i);
+                }
+            }
+        }
+
+        var sum = divisors.reduce(function (acc, val) {
+            return acc + val;
+        }, 0);
+
+        return sum === number;
+    }
+</script>
+
+<!-- Büyük resim container'ı -->
+<div id="large-image-container">
+    <span id="close-button" onclick="closeLargeImage()">&#10006;</span>
+    <img id="large-image" src="" alt="Large Image">
+</div>
+
+</body>
+</html>
